@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<title>靠北培英｜管理後台</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--tx:#1c1c1e;--mute:#737373;--line:#dbdbdb;--acc:#e1306c;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root{--bg:#0b0b0c;--card:#161618;--tx:#f2f2f2;--mute:#9a9a9f;--line:#2e2e32}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"PingFang TC","Noto Sans TC",sans-serif;line-height:1.6}
+.w{max-width:560px;margin:0 auto;padding:16px}h1{font-size:20px;margin:4px 0 12px}
+input{width:100%;padding:11px 12px;font-size:16px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--tx)}
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0}
+.tab,.b{border:1px solid var(--line);background:none;color:var(--tx);border-radius:999px;padding:6px 14px;font-size:14px;cursor:pointer}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:12px}
+.card img{width:100%;border-radius:10px;display:block;margin-bottom:8px}
+.meta{font-size:12px;color:var(--mute)}.txt{white-space:pre-wrap;word-break:break-word;margin:6px 0;font-size:15px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.b.ok{background:#1f9d55;border-color:#1f9d55;color:#fff}.b.no{color:#b7791f;border-color:#b7791f}.b.del{color:#d33;border-color:#d33}
+.st{font-weight:700;font-size:12px;padding:2px 8px;border-radius:6px;background:var(--line)}
+#msg{color:var(--acc);font-size:14px;min-height:22px}a{color:var(--acc);font-size:13px}
+</style>
+</head>
+<body><div class="w">
+<h1>靠北培英 管理後台</h1>
+<div id="login"><input type="password" id="pw" placeholder="管理員密碼" autocomplete="current-password">
+<div class="row"><button class="b ok" id="enter">登入</button></div></div>
+<div id="app" hidden>
+<div class="tabs" id="tabs"></div><div id="msg"></div><div id="list"></div>
+<div class="row"><button class="b" id="refresh">重新整理</button><button class="b" id="out">登出</button></div>
+</div></div>
+<script>
+const $=s=>document.getElementById(s);
+const TABS=[["PENDING","待審核"],["APPROVED","已核准"],["REJECTED","已拒絕"],["ALL","全部"]];
+const LBL={PENDING:"待審核",APPROVED:"已核准",REJECTED:"已拒絕"};
+let tok="",items=[],tab="PENDING";
+try{tok=sessionStorage.getItem("kbt")||""}catch(e){}
+async function api(p,body){
+  const r=await fetch(p,{method:body?"POST":"GET",headers:{"X-Admin-Token":tok,"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+  const j=await r.json().catch(()=>({}));if(r.status===401){logout();throw new Error("密碼錯誤")}
+  if(!r.ok)throw new Error(j.error||"失敗");return j;
+}
+function logout(){tok="";try{sessionStorage.removeItem("kbt")}catch(e){}$("app").hidden=true;$("login").hidden=false}
+async function load(){
+  $("msg").textContent="載入中⋯⋯";
+  try{items=(await api("/api/admin/list")).items;$("login").hidden=true;$("app").hidden=false;$("msg").textContent="";render()}
+  catch(e){$("msg").textContent=e.message;$("login").hidden=false}
+}
+function render(){
+  $("tabs").replaceChildren(...TABS.map(([k,l])=>{const b=document.createElement("button");b.className="tab"+(k===tab?" on":"");
+    const n=k==="ALL"?items.length:items.filter(i=>i.status===k).length;b.textContent=l+" "+n;b.onclick=()=>{tab=k;render()};return b}));
+  const L=items.filter(i=>tab==="ALL"||i.status===tab);const box=$("list");box.replaceChildren();
+  if(!L.length){box.textContent="沒有投稿";return}
+  L.forEach(i=>{
+    const c=document.createElement("div");c.className="card";
+    if(/^https:\/\//.test(i.image_url)){const im=document.createElement("img");im.src=i.image_url;im.alt="投稿圖片";im.loading="lazy";c.appendChild(im)}
+    const m=document.createElement("div");m.className="meta";m.textContent=`${i.title}｜${i.category}｜${i.nickname}｜${new Date(i.submitted_at).toLocaleString("zh-TW")}｜`;
+    const s=document.createElement("span");s.className="st";s.textContent=LBL[i.status]||i.status;m.appendChild(s);c.appendChild(m);
+    const t=document.createElement("div");t.className="txt";t.textContent=i.content;c.appendChild(t);
+    const r=document.createElement("div");r.className="row";
+    const mk=(cls,txt,fn)=>{const b=document.createElement("button");b.className="b "+cls;b.textContent=txt;b.onclick=fn;r.appendChild(b)};
+    if(i.status!=="APPROVED")mk("ok","核准並發布",()=>act(i,"approve","確定核准並送往 IG 發布？"));
+    if(i.status==="PENDING")mk("no","拒絕",()=>act(i,"reject"));
+    mk("del","刪除",()=>act(i,"delete","確定永久刪除這筆投稿？"+(i.status==="APPROVED"?"\n（已發布到 IG 的貼文需另外到 IG 手動刪除）":"")));
+    if(/^https:\/\//.test(i.delete_url||"")){const a=document.createElement("a");a.href=i.delete_url;a.target="_blank";a.rel="noopener";a.textContent="刪除圖床圖片";r.appendChild(a)}
+    c.appendChild(r);box.appendChild(c);
+  });
+}
+async function act(i,action,ask){
+  if(ask&&!confirm(ask))return;$("msg").textContent="處理中⋯⋯";
+  try{await api("/api/admin/action",{key:i.key,action});await load();$("msg").textContent="完成"}catch(e){$("msg").textContent=e.message}
+}
+$("enter").onclick=()=>{tok=$("pw").value;try{sessionStorage.setItem("kbt",tok)}catch(e){}load()};
+$("pw").addEventListener("keydown",e=>{if(e.key==="Enter")$("enter").click()});
+$("refresh").onclick=load;$("out").onclick=logout;
+if(tok)load();
+</script>
+</body></html>

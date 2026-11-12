@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>靠北培英｜匿名投稿</title>
+<style>
+:root{--bg:#fafafa;--card:#fff;--tx:#1c1c1e;--mute:#737373;--line:#dbdbdb;--acc:#e1306c;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0b0b0c;--card:#161618;--tx:#f2f2f2;--mute:#9a9a9f;--line:#2e2e32}}
+:root[data-theme="dark"]{--bg:#0b0b0c;--card:#161618;--tx:#f2f2f2;--mute:#9a9a9f;--line:#2e2e32}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tx);font-family:-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;line-height:1.6}
+.wrap{max-width:520px;margin:0 auto;padding:20px 16px 48px}
+.head{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.ring{width:64px;height:64px;border-radius:50%;padding:3px;background:linear-gradient(45deg,#feda75,#fa7e1e,#d62976,#962fbf,#4f5bd5);flex:none}
+.ring div{width:100%;height:100%;border-radius:50%;background:var(--card);display:grid;place-items:center;font-weight:800;font-size:15px}
+h1{font-size:20px;margin:0}.sub{color:var(--mute);font-size:13px;margin:0}
+.box{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:14px}
+label.t{display:block;font-weight:700;font-size:14px;margin-bottom:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{border:1px solid var(--line);background:none;color:var(--tx);padding:6px 14px;border-radius:999px;font-size:14px;cursor:pointer}
+.chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+textarea,input[type=text]{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--tx);border-radius:10px;padding:10px 12px;font:inherit;font-size:16px}
+textarea{min-height:140px;resize:vertical}
+.cnt{text-align:right;color:var(--mute);font-size:12px;margin-top:4px}
+.sw{display:flex;gap:10px;margin-top:12px}
+.sw button{width:34px;height:34px;border-radius:50%;border:3px solid transparent;cursor:pointer}
+.sw button.on{border-color:var(--tx)}
+canvas{width:100%;height:auto;border-radius:12px;display:block}
+.up{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.rule{font-size:13px;color:var(--mute);margin:0 0 10px;padding-left:18px}
+.chk{display:flex;gap:8px;align-items:flex-start;font-size:14px}
+.chk input{margin-top:5px}
+.btn{width:100%;border:0;border-radius:10px;padding:13px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(45deg,#fa7e1e,#d62976,#962fbf);cursor:pointer;margin-top:10px}
+.btn.s{width:auto;padding:8px 14px;font-size:14px;margin:0;background:none;color:var(--acc);border:1px solid var(--acc)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.msg{text-align:center;font-size:14px;min-height:22px;margin-top:8px;color:var(--acc)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="head">
+    <div class="ring"><div>靠北</div></div>
+    <div><h1>靠北培英</h1><p class="sub">IG 版匿名投稿・審核通過後自動發布</p></div>
+  </div>
+
+  <div class="box"><label class="t">投稿類別</label><div class="chips" id="cats"></div></div>
+
+  <div class="box">
+    <label class="t" for="txt">投稿內容</label>
+    <textarea id="txt" maxlength="500" placeholder="寫下你想靠北的事⋯⋯"></textarea>
+    <div class="cnt"><span id="n">0</span>/500</div>
+    <label class="t" for="nick" style="margin-top:10px">署名（可留空，預設「匿名」）</label>
+    <input type="text" id="nick" maxlength="12">
+    <label class="t" style="margin-top:14px">附圖（選填，請先遮蔽人臉與個資）</label>
+    <div class="up">
+      <input type="file" id="file" accept="image/*" hidden>
+      <button class="btn s" id="pick" type="button">選擇圖片</button>
+      <button class="btn s" id="rm" type="button" hidden>移除圖片</button>
+    </div>
+  </div>
+
+  <div class="box">
+    <label class="t">貼文預覽（1080×1080）</label>
+    <canvas id="cv" width="1080" height="1080"></canvas>
+    <div class="sw" id="sw"></div>
+  </div>
+
+  <div class="box">
+    <ul class="rule">
+      <li>禁止出現姓名、班級、電話、帳號等個資</li>
+      <li>禁止人身攻擊、霸凌、未經證實的指控</li>
+      <li>系統會先自動審核，再交由管理流程處理，不保證刊登</li>
+    </ul>
+    <label class="chk"><input type="checkbox" id="ok"><span>我已閱讀並同意投稿規範</span></label>
+    <button class="btn" id="go" disabled>送出投稿</button>
+    <div class="msg" id="msg"></div>
+  </div>
+</div>
+
+<script>
+// ====== 設定 ======
+const BAD=["幹你娘","操你媽","機掰","去死","殺了你"]; // 自行增減
+const CATS=["校園生活","老師","同學","社團","福利社","其他"];
+const THEMES=[["#fa7e1e","#d62976"],["#4f5bd5","#962fbf"],["#0f9b8e","#3a7bd5"],["#232526","#5c5c66"]];
+const FONT='"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif';
+let cat=CATS[0],th=0,img=null,id=String(Math.floor(1000+Math.random()*9000));
+const $=s=>document.getElementById(s),cv=$("cv"),c=cv.getContext("2d");
+
+CATS.forEach((t,i)=>{const b=document.createElement("button");b.className="chip"+(i?"":" on");b.textContent=t;b.onclick=()=>{cat=t;[...$("cats").children].forEach(x=>x.classList.toggle("on",x===b));draw()};$("cats").appendChild(b)});
+THEMES.forEach((t,i)=>{const b=document.createElement("button");b.style.background=`linear-gradient(135deg,${t[0]},${t[1]})`;b.className=i?"":"on";b.setAttribute("aria-label","配色"+(i+1));b.onclick=()=>{th=i;[...$("sw").children].forEach(x=>x.classList.toggle("on",x===b));draw()};$("sw").appendChild(b)});
+
+$("pick").onclick=()=>$("file").click();
+$("rm").onclick=()=>{img=null;$("file").value="";$("rm").hidden=true;draw()};
+$("file").onchange=e=>{
+  const f=e.target.files[0];if(!f)return;
+  const im=new Image(),u=URL.createObjectURL(f);
+  im.onload=()=>{img=im;$("rm").hidden=false;draw()};
+  im.onerror=()=>{$("msg").textContent="圖片讀取失敗"};im.src=u;
+};
+
+function wrap(t,w){
+  const out=[];
+  t.split("\n").forEach(p=>{let l="";for(const ch of p){if(c.measureText(l+ch).width>w){out.push(l);l=ch}else l+=ch}out.push(l)});
+  return out;
+}
+function draw(){
+  const txt=$("txt").value.trim()||"你的投稿會顯示在這裡",nk=$("nick").value.trim()||"匿名";
+  $("n").textContent=$("txt").value.length;
+  const g=c.createLinearGradient(0,0,1080,1080);g.addColorStop(0,THEMES[th][0]);g.addColorStop(1,THEMES[th][1]);
+  c.fillStyle=g;c.fillRect(0,0,1080,1080);
+  c.fillStyle="#fff";c.textBaseline="top";
+  c.font=`700 34px ${FONT}`;c.fillText("#靠北培英 · "+cat,60,60);
+  let top=140;
+  if(img){
+    const bx=60,by=130,bw=960,bh=470,r=Math.max(bw/img.width,bh/img.height),sw=bw/r,sh=bh/r;
+    c.save();c.beginPath();c.roundRect(bx,by,bw,bh,28);c.clip();
+    c.drawImage(img,(img.width-sw)/2,(img.height-sh)/2,sw,sh,bx,by,bw,bh);c.restore();top=640;
+  }
+  const maxH=960-top;let size=58,lines;
+  for(const s of [58,50,44,38,34,30,26]){size=s;c.font=`600 ${s}px ${FONT}`;lines=wrap(txt,960);if(lines.length*s*1.5<=maxH)break}
+  const max=Math.floor(maxH/(size*1.5));
+  if(lines.length>max){lines=lines.slice(0,max);lines[max-1]=lines[max-1].slice(0,-1)+"…"}
+  lines.forEach((l,i)=>c.fillText(l,60,top+i*size*1.5));
+  c.font=`600 30px ${FONT}`;c.globalAlpha=.9;c.fillText("—— "+nk,60,990);
+  c.textAlign="right";c.fillText("#"+id,1020,990);c.textAlign="left";c.globalAlpha=1;
+  $("go").disabled=!($("txt").value.trim().length>=5&&$("ok").checked);
+}
+
+// 前端初步審核（正式審核請在 Make 內加 AI/人工審核）
+function review(t){
+  if(/(\d[\s-]?){8,}/.test(t))return"疑似含電話或長數字串";
+  if(/[\w.+-]+@[\w-]+\.[\w.]+/.test(t))return"疑似含 Email";
+  if(/https?:\/\/|www\./i.test(t))return"不可附網址";
+  if(/@[\w.]{3,}/.test(t))return"疑似標註他人帳號";
+  if(/[A-Z][12]\d{8}/i.test(t))return"疑似含身分證字號";
+  const b=BAD.find(w=>t.includes(w));if(b)return"內容含不當字詞";
+  return null;
+}
+
+$("go").onclick=async()=>{
+  const m=$("msg"),t=$("txt").value.trim(),nk=$("nick").value.trim()||"匿名";
+  const bad=review(t+" "+nk);if(bad){m.textContent="未通過自動審核："+bad;return}
+  try{const last=+localStorage.getItem("kbpy_last")||0;if(Date.now()-last<60000){m.textContent="投稿太頻繁，請稍後 1 分鐘再試";return}}catch(e){}
+  $("go").disabled=true;m.textContent="送出中⋯⋯";
+  const b64=cv.toDataURL("image/jpeg",0.88).split(",")[1];
+  try{
+    const r=await fetch("/api/submit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({id,content:t,category:cat,nickname:nk,has_image:!!img,image_base64:b64})});
+    if(r.status===422){const e=await r.json();m.textContent="未通過自動審核："+e.error;$("go").disabled=false;return}
+    if(!r.ok)throw new Error("send");
+    try{localStorage.setItem("kbpy_last",String(Date.now()))}catch(e){}
+    m.textContent="已送出！審核通過後會自動發布到 IG";
+    $("txt").value="";img=null;$("rm").hidden=true;$("ok").checked=false;id=String(Math.floor(1000+Math.random()*9000));
+  }catch(e){m.textContent="送出失敗，請稍後再試"}
+  draw();
+};
+["txt","nick"].forEach(k=>$(k).addEventListener("input",draw));$("ok").addEventListener("change",draw);
+draw();
+</script>
+</body>
+</html>
